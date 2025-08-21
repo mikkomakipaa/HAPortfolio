@@ -1,7 +1,7 @@
 {
   "name": "Portfolio Tracker",
   "content_in_root": false,
-  "zip_release": true,
+  "zip_release": false,
   "render_readme": true,
   "domains": ["portfolio_tracker"],
   "iot_class": "cloud_polling",

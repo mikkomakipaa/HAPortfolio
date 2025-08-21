@@ -111,7 +111,7 @@ class PortfolioSensor(CoordinatorEntity, SensorEntity):
             "name": "Portfolio Tracker",
             "manufacturer": "Portfolio Tracker",
             "model": "Home Assistant Integration",
-            "sw_version": "0.1",
+            "sw_version": "0.1.0",
         }
 
     @property

@@ -1,7 +1,7 @@
 {
   "domain": "portfolio_tracker",
   "name": "Portfolio Tracker",
-  "version": "0.1",
+  "version": "0.1.0",
   "config_flow": true,
   "documentation": "https://github.com/mikkomakipaa/HAPortfolio",
   "requirements": [
@@ -16,5 +16,6 @@
   "integration_type": "hub",
   "quality_scale": "silver",
   "dependencies": ["application_credentials"],
-  "after_dependencies": ["application_credentials"]
+  "after_dependencies": ["application_credentials"],
+  "loggers": ["custom_components.portfolio_tracker"]
 }
