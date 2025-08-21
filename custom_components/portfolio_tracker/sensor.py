@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 import logging
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from homeassistant.components.sensor import (
     SensorEntity,
@@ -136,10 +137,30 @@ class PortfolioSensor(CoordinatorEntity, SensorEntity):
             if last_update:
                 if isinstance(last_update, str):
                     try:
-                        return datetime.fromisoformat(last_update.replace('Z', '+00:00'))
-                    except ValueError:
-                        return None
+                        # Parse ISO string and ensure timezone info
+                        dt = datetime.fromisoformat(last_update.replace('Z', '+00:00'))
+                        # If timezone naive, assume UTC
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+                        return dt
+                    except (ValueError, ImportError):
+                        # Fallback for older Python without zoneinfo
+                        try:
+                            from datetime import timezone
+                            dt = datetime.fromisoformat(last_update.replace('Z', '+00:00'))
+                            if dt.tzinfo is None:
+                                dt = dt.replace(tzinfo=timezone.utc)
+                            return dt
+                        except ValueError:
+                            return None
                 elif isinstance(last_update, datetime):
+                    # Ensure timezone info is present
+                    if last_update.tzinfo is None:
+                        try:
+                            last_update = last_update.replace(tzinfo=ZoneInfo('UTC'))
+                        except ImportError:
+                            from datetime import timezone
+                            last_update = last_update.replace(tzinfo=timezone.utc)
                     return last_update
             return None
 

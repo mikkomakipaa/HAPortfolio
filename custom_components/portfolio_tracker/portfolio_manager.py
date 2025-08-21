@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -46,9 +46,11 @@ class PortfolioManager:
                 self._google_api = None
         else:
             if sheets_id and not credentials_json:
-                _LOGGER.warning("Google Sheets ID provided but no credentials. Google Sheets functionality disabled.")
+                _LOGGER.info("Google Sheets ID provided but no credentials configured. Google Sheets sync disabled. To enable, add service account JSON credentials in the integration options.")
             elif credentials_json and not sheets_id:
-                _LOGGER.warning("Google credentials provided but no Sheets ID. Google Sheets functionality disabled.")
+                _LOGGER.info("Google credentials provided but no Sheets ID configured. Google Sheets sync disabled. To enable, add Google Sheets document ID in the integration options.")
+            elif not sheets_id and not credentials_json:
+                _LOGGER.debug("Google Sheets not configured. Integration will work with InfluxDB data only.")
             self._google_api = None
         self._influx_client = None
         self._last_data = None
@@ -166,7 +168,7 @@ class PortfolioManager:
             return {
                 "connected": True,
                 "data": data or [],
-                "last_access": datetime.now().isoformat()
+                "last_access": datetime.now(timezone.utc).isoformat()
             }
             
         except Exception as e:
@@ -199,7 +201,7 @@ class PortfolioManager:
                 'daily_change': 0.0,
                 'daily_change_percent': 0.0,
                 'total_positions': 0,
-                'last_update': datetime.now().isoformat(),
+                'last_update': datetime.now(timezone.utc).isoformat(),
                 'positions': [],
                 'data_sources': {
                     'influxdb_connected': False,
@@ -311,7 +313,7 @@ class PortfolioManager:
                 'daily_change': 0.0,
                 'daily_change_percent': 0.0,
                 'total_positions': 0,
-                'last_update': datetime.now().isoformat(),
+                'last_update': datetime.now(timezone.utc).isoformat(),
                 'positions': [],
                 'data_sources': {
                     'influxdb_connected': False,
@@ -414,7 +416,7 @@ class PortfolioManager:
                             "value": value,
                             "change": float(row_data.get('change', row_data.get('daily_change', 0))),
                         },
-                        "time": datetime.now().isoformat()
+                        "time": datetime.now(timezone.utc).isoformat()
                     }
                     points.append(position_point)
                     
@@ -435,7 +437,7 @@ class PortfolioManager:
                         "total_value": portfolio_total,
                         "position_count": position_count,
                     },
-                    "time": datetime.now().isoformat()
+                    "time": datetime.now(timezone.utc).isoformat()
                 }
                 points.append(portfolio_point)
             
@@ -540,7 +542,7 @@ class PortfolioManager:
                     'influxdb': False,
                     'google_sheets': False,
                 },
-                'last_check': datetime.now().isoformat(),
+                'last_check': datetime.now(timezone.utc).isoformat(),
                 'version': 'v1-compatible',
             }
             
@@ -579,6 +581,6 @@ class PortfolioManager:
                     'influxdb': False,
                     'google_sheets': False,
                 },
-                'last_check': datetime.now().isoformat(),
+                'last_check': datetime.now(timezone.utc).isoformat(),
                 'version': 'v1-compatible',
             }
