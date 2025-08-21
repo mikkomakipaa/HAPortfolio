@@ -1,0 +1,9 @@
+{
+  "name": "Portfolio Tracker",
+  "content_in_root": false,
+  "zip_release": true,
+  "render_readme": true,
+  "domains": ["portfolio_tracker"],
+  "iot_class": "cloud_polling",
+  "homeassistant": "2023.1.0"
+}

@@ -1,0 +1,92 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Portfolio Tracker Setup",
+        "description": "Configure Portfolio Tracker with InfluxDB v1 (compatible with Home Assistant Add-on). {influxdb_version}",
+        "data": {
+          "influxdb_url": "InfluxDB URL",
+          "influxdb_username": "Username",
+          "influxdb_password": "Password",
+          "influxdb_database": "Database Name",
+          "google_sheets_id": "Google Sheets ID (optional)",
+          "credentials_path": "Google Credentials Path",
+          "update_interval": "Update Interval (minutes)",
+          "auto_sync_sheets": "Auto-sync from Google Sheets"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to InfluxDB. Please check your URL and network connectivity.",
+      "invalid_auth": "Invalid username or password for InfluxDB.",
+      "unknown": "Unexpected error occurred during configuration."
+    },
+    "abort": {
+      "already_configured": "Portfolio Tracker is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Portfolio Tracker Options",
+        "description": "Configure Portfolio Tracker options",
+        "data": {
+          "update_interval": "Update Interval (minutes)",
+          "google_sheets_id": "Google Sheets ID (optional)",
+          "credentials_path": "Google Credentials Path",
+          "auto_sync_sheets": "Auto-sync from Google Sheets"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "portfolio_value": {
+        "name": "Portfolio Value"
+      },
+      "daily_change": {
+        "name": "Daily Change"
+      },
+      "daily_change_percent": {
+        "name": "Daily Change Percent"
+      },
+      "total_positions": {
+        "name": "Total Positions"
+      },
+      "last_update": {
+        "name": "Last Update"
+      }
+    },
+    "binary_sensor": {
+      "data_source_health": {
+        "name": "Data Source Health"
+      },
+      "influxdb_connected": {
+        "name": "InfluxDB Connected"
+      },
+      "google_sheets_connected": {
+        "name": "Google Sheets Connected"
+      }
+    }
+  },
+  "services": {
+    "update_data": {
+      "name": "Update Portfolio Data",
+      "description": "Manually sync portfolio data from Google Sheets to InfluxDB"
+    },
+    "run_analytics": {
+      "name": "Run Portfolio Analytics",
+      "description": "Run portfolio analytics for the specified number of days",
+      "fields": {
+        "days": {
+          "name": "Days",
+          "description": "Number of days to analyze"
+        }
+      }
+    },
+    "get_status": {
+      "name": "Get Portfolio Status",
+      "description": "Get current portfolio system status and health information"
+    }
+  }
+}
