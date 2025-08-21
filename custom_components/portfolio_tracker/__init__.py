@@ -192,19 +192,22 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def _async_setup_services(hass: HomeAssistant, portfolio_manager: PortfolioManager) -> None:
     """Set up portfolio tracker services."""
     
-    async def update_portfolio_data(call) -> None:
+    async def update_portfolio_data(call) -> dict:
         """Service to manually update portfolio data from Google Sheets to InfluxDB."""
         try:
             success = await portfolio_manager.async_update_portfolio_data()
             if success:
                 hass.bus.async_fire("portfolio_tracker_updated", {"status": "success"})
+                return {"success": True, "message": "Portfolio data updated successfully"}
             else:
                 hass.bus.async_fire("portfolio_tracker_updated", {"status": "error", "error": "Failed to sync data"})
+                return {"success": False, "error": "Failed to sync data"}
         except Exception as err:
             _LOGGER.error("Failed to update portfolio data: %s", err)
             hass.bus.async_fire("portfolio_tracker_updated", {"status": "error", "error": str(err)})
+            return {"success": False, "error": str(err)}
 
-    async def run_analytics(call) -> None:
+    async def run_analytics(call) -> dict:
         """Service to run portfolio analytics."""
         days = call.data.get("days", 30)
         try:
@@ -212,18 +215,22 @@ async def _async_setup_services(hass: HomeAssistant, portfolio_manager: Portfoli
                 portfolio_manager.run_analytics, days
             )
             hass.bus.async_fire("portfolio_analytics_completed", {"status": "success", "result": result})
+            return {"success": True, "analytics": result, "days_analyzed": days}
         except Exception as err:
             _LOGGER.error("Failed to run analytics: %s", err)
             hass.bus.async_fire("portfolio_analytics_completed", {"status": "error", "error": str(err)})
+            return {"success": False, "error": str(err)}
 
-    async def get_portfolio_status(call) -> None:
+    async def get_portfolio_status(call) -> dict:
         """Service to get portfolio system status."""
         try:
             status = await hass.async_add_executor_job(portfolio_manager.get_system_status)
             hass.bus.async_fire("portfolio_status_retrieved", {"status": "success", "data": status})
+            return {"success": True, "status": status}
         except Exception as err:
             _LOGGER.error("Failed to get portfolio status: %s", err)
             hass.bus.async_fire("portfolio_status_retrieved", {"status": "error", "error": str(err)})
+            return {"success": False, "error": str(err)}
 
     # Register services with improved schema validation
     import voluptuous as vol
@@ -234,7 +241,11 @@ async def _async_setup_services(hass: HomeAssistant, portfolio_manager: Portfoli
         "update_data", 
         update_portfolio_data,
         schema=vol.Schema({}),
-        supports_response=False
+        supports_response=vol.Schema({
+            vol.Required("success"): bool,
+            vol.Optional("message"): str,
+            vol.Optional("error"): str,
+        })
     )
     hass.services.async_register(
         DOMAIN, 
@@ -245,12 +256,21 @@ async def _async_setup_services(hass: HomeAssistant, portfolio_manager: Portfoli
                 cv.positive_int, vol.Range(min=1, max=365)
             )
         }),
-        supports_response=False
+        supports_response=vol.Schema({
+            vol.Required("success"): bool,
+            vol.Optional("analytics"): dict,
+            vol.Optional("days_analyzed"): int,
+            vol.Optional("error"): str,
+        })
     )
     hass.services.async_register(
         DOMAIN, 
         "get_status", 
         get_portfolio_status,
         schema=vol.Schema({}),
-        supports_response=False
+        supports_response=vol.Schema({
+            vol.Required("success"): bool,
+            vol.Optional("status"): dict,
+            vol.Optional("error"): str,
+        })
     )
