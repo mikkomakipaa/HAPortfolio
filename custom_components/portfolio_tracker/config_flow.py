@@ -11,7 +11,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers import config_entry_oauth2_flow
+# OAuth2 flow will be added in future version
+# from homeassistant.helpers import config_entry_oauth2_flow
 
 from .const import (
     DOMAIN,
@@ -21,7 +22,6 @@ from .const import (
     CONF_INFLUXDB_DATABASE,
     CONF_GOOGLE_SHEETS_ID,
     CONF_UPDATE_INTERVAL,
-    CONF_CREDENTIALS_PATH,
     CONF_AUTO_SYNC_SHEETS,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_INFLUXDB_URL,
@@ -36,7 +36,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_INFLUXDB_USERNAME): str,
         vol.Required(CONF_INFLUXDB_PASSWORD): str,
         vol.Optional(CONF_INFLUXDB_DATABASE, default="portfolio"): str,
-        vol.Optional(CONF_GOOGLE_SHEETS_ID): str,
+        vol.Optional(CONF_GOOGLE_SHEETS_ID, description="Google Sheets ID (optional - for future use)"): str,
         vol.Optional(CONF_UPDATE_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
             vol.Coerce(int), vol.Range(min=5, max=1440)
         ),
@@ -118,7 +118,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Portfolio Tracker."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
+    # CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL  # Deprecated in newer HA versions
 
     @staticmethod
     @callback
@@ -183,14 +183,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=self.config_entry.options.get(
                         CONF_GOOGLE_SHEETS_ID,
                         self.config_entry.data.get(CONF_GOOGLE_SHEETS_ID, "")
-                    )
-                ): str,
-                vol.Optional(
-                    CONF_CREDENTIALS_PATH,
-                    default=self.config_entry.options.get(
-                        CONF_CREDENTIALS_PATH,
-                        self.config_entry.data.get(CONF_CREDENTIALS_PATH, "credentials.json")
-                    )
+                    ),
+                    description="Google Sheets ID (optional - for future use)"
                 ): str,
             }),
         )

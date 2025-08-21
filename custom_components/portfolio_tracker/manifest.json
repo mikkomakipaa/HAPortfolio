@@ -15,7 +15,7 @@
   "issue_tracker": "https://github.com/mikkomakipaa/HAPortfolio/issues",
   "integration_type": "hub",
   "quality_scale": "silver",
-  "dependencies": ["application_credentials"],
-  "after_dependencies": ["application_credentials"],
+  "dependencies": [],
+  "after_dependencies": [],
   "loggers": ["custom_components.portfolio_tracker"]
 }
