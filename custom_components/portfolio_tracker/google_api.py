@@ -1,20 +1,22 @@
-"""Google API integration using Home Assistant's Application Credentials."""
+"""Google API integration using service account or API key authentication."""
 from __future__ import annotations
 
+import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.auth.exceptions import RefreshError
-from google.oauth2.credentials import Credentials
+from google.oauth2.service_account import Credentials
+from google.oauth2.credentials import Credentials as UserCredentials
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-# OAuth2 flow will be implemented in future version
-# from homeassistant.helpers import config_entry_oauth2_flow
+from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_GOOGLE_CREDENTIALS_JSON
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,43 +24,53 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 
 class GoogleSheetsAPI:
-    """Google Sheets API client using HA's Application Credentials."""
+    """Google Sheets API client using service account credentials."""
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize the Google Sheets API client."""
         self.hass = hass
         self.config_entry = config_entry
         self._service = None
-        self._auth_implementation = None
+        self._credentials = None
 
     async def async_get_service(self):
-        """Get or create the Google Sheets service using config entry data."""
+        """Get or create the Google Sheets service using service account credentials."""
         if self._service is None:
             try:
-                # For now, we'll use a simplified approach that works with the current setup
-                # This will need to be updated when proper OAuth2 flow is implemented
+                # Get credentials from config entry
+                credentials_json = self.config_entry.data.get(CONF_GOOGLE_CREDENTIALS_JSON)
                 
-                # Check if we have any Google integration available
-                if "google" not in self.hass.data:
-                    _LOGGER.warning("Google integration not available. Google Sheets functionality disabled.")
+                if not credentials_json:
+                    _LOGGER.warning("No Google credentials configured. Google Sheets functionality disabled.")
                     return None
                 
-                # Try to get existing Google integration data
-                google_data = self.hass.data.get("google", {})
-                
-                # Look for existing Google config entries
-                google_entries = [entry for entry in self.hass.config_entries.async_entries("google")]
-                if not google_entries:
-                    _LOGGER.warning("No Google integration configured. Please set up Google Drive integration first.")
+                # Parse credentials JSON
+                try:
+                    credentials_data = json.loads(credentials_json)
+                except json.JSONDecodeError as e:
+                    _LOGGER.error("Invalid Google credentials JSON format: %s", e)
                     return None
                 
-                # For now, log that Google Sheets is not available and return None
-                # This will allow the integration to work without Google Sheets
-                _LOGGER.info("Google Sheets integration requires additional OAuth2 setup. Continuing without Google Sheets.")
-                return None
+                # Create service account credentials
+                if "type" in credentials_data and credentials_data["type"] == "service_account":
+                    _LOGGER.debug("Using service account credentials")
+                    credentials = Credentials.from_service_account_info(
+                        credentials_data, scopes=SCOPES
+                    )
+                else:
+                    _LOGGER.error("Only service account credentials are supported")
+                    return None
+                
+                # Build the service
+                self._service = await self.hass.async_add_executor_job(
+                    build, "sheets", "v4", credentials=credentials
+                )
+                self._credentials = credentials
+                
+                _LOGGER.info("Successfully connected to Google Sheets API using service account")
                 
             except Exception as e:
-                _LOGGER.debug(f"Google Sheets setup failed: {e}")
+                _LOGGER.error(f"Failed to connect to Google Sheets API: {e}")
                 return None
                 
         return self._service

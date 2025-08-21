@@ -10,7 +10,7 @@
           "influxdb_password": "Password",
           "influxdb_database": "Database Name",
           "google_sheets_id": "Google Sheets ID (optional)",
-          "credentials_path": "Google Credentials Path",
+          "google_credentials_json": "Google Service Account JSON (optional)",
           "update_interval": "Update Interval (minutes)",
           "auto_sync_sheets": "Auto-sync from Google Sheets"
         }
@@ -33,7 +33,7 @@
         "data": {
           "update_interval": "Update Interval (minutes)",
           "google_sheets_id": "Google Sheets ID (optional)",
-          "credentials_path": "Google Credentials Path",
+          "google_credentials_json": "Google Service Account JSON (optional)",
           "auto_sync_sheets": "Auto-sync from Google Sheets"
         }
       }

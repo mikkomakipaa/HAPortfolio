@@ -16,8 +16,8 @@ CONF_INFLUXDB_USERNAME: Final = "influxdb_username"
 CONF_INFLUXDB_PASSWORD: Final = "influxdb_password"
 CONF_INFLUXDB_DATABASE: Final = "influxdb_database"
 CONF_GOOGLE_SHEETS_ID: Final = "google_sheets_id"
+CONF_GOOGLE_CREDENTIALS_JSON: Final = "google_credentials_json"
 CONF_UPDATE_INTERVAL: Final = "update_interval"
-CONF_CREDENTIALS_PATH: Final = "credentials_path"
 CONF_AUTO_SYNC_SHEETS: Final = "auto_sync_sheets"
 
 # Default values

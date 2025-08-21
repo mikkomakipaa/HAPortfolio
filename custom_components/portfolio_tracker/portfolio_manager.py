@@ -15,6 +15,7 @@ from .const import (
     CONF_INFLUXDB_PASSWORD,
     CONF_INFLUXDB_DATABASE,
     CONF_GOOGLE_SHEETS_ID,
+    CONF_GOOGLE_CREDENTIALS_JSON,
 )
 from .utils import parse_influxdb_url
 from .google_api import GoogleSheetsAPI
@@ -32,15 +33,23 @@ class PortfolioManager:
         self.config_entry = config_entry
         self._google_api = None
         
-        # Initialize Google Sheets API if configured and config_entry is available
-        # Note: Google Sheets integration is optional and may not be available
-        if config_entry and config.get(CONF_GOOGLE_SHEETS_ID):
+        # Initialize Google Sheets API if configured with both sheets ID and credentials
+        sheets_id = config.get(CONF_GOOGLE_SHEETS_ID)
+        credentials_json = config.get(CONF_GOOGLE_CREDENTIALS_JSON)
+        
+        if config_entry and sheets_id and credentials_json:
             try:
                 self._google_api = GoogleSheetsAPI(hass, config_entry)
-                _LOGGER.debug("Google Sheets API initialized")
+                _LOGGER.debug("Google Sheets API initialized with service account")
             except Exception as e:
                 _LOGGER.warning("Failed to initialize Google Sheets API: %s", e)
                 self._google_api = None
+        else:
+            if sheets_id and not credentials_json:
+                _LOGGER.warning("Google Sheets ID provided but no credentials. Google Sheets functionality disabled.")
+            elif credentials_json and not sheets_id:
+                _LOGGER.warning("Google credentials provided but no Sheets ID. Google Sheets functionality disabled.")
+            self._google_api = None
         self._influx_client = None
         self._last_data = None
 

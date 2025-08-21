@@ -21,6 +21,7 @@ from .const import (
     CONF_INFLUXDB_PASSWORD,
     CONF_INFLUXDB_DATABASE,
     CONF_GOOGLE_SHEETS_ID,
+    CONF_GOOGLE_CREDENTIALS_JSON,
     CONF_UPDATE_INTERVAL,
     CONF_AUTO_SYNC_SHEETS,
     DEFAULT_SCAN_INTERVAL,
@@ -36,13 +37,46 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_INFLUXDB_USERNAME): str,
         vol.Required(CONF_INFLUXDB_PASSWORD): str,
         vol.Optional(CONF_INFLUXDB_DATABASE, default="portfolio"): str,
-        vol.Optional(CONF_GOOGLE_SHEETS_ID, description="Google Sheets ID (optional - for future use)"): str,
+        vol.Optional(CONF_GOOGLE_SHEETS_ID, description="Google Sheets document ID"): str,
+        vol.Optional(CONF_GOOGLE_CREDENTIALS_JSON, description="Google Service Account JSON credentials"): str,
         vol.Optional(CONF_UPDATE_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
             vol.Coerce(int), vol.Range(min=5, max=1440)
         ),
         vol.Optional(CONF_AUTO_SYNC_SHEETS, default=True): bool,
     }
 )
+
+
+def _test_google_credentials(credentials_json: str) -> bool:
+    """Test Google service account credentials."""
+    if not credentials_json:
+        return True  # Optional
+    
+    try:
+        import json
+        from google.oauth2.service_account import Credentials
+        
+        # Parse JSON
+        credentials_data = json.loads(credentials_json)
+        
+        # Check if it's a service account
+        if credentials_data.get("type") != "service_account":
+            raise ValueError("Only service account credentials are supported")
+        
+        # Try to create credentials
+        Credentials.from_service_account_info(
+            credentials_data, 
+            scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+        )
+        
+        return True
+        
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
+        _LOGGER.debug("Google credentials validation failed: %s", e)
+        return False
+    except Exception as e:
+        _LOGGER.debug("Google credentials test failed: %s", e)
+        return False
 
 
 def _test_influxdb_connection(data: dict[str, Any]) -> dict[str, Any]:
@@ -110,8 +144,17 @@ def _test_influxdb_connection(data: dict[str, Any]) -> dict[str, Any]:
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
-    # Run the connection test in executor to avoid blocking the event loop
-    return await hass.async_add_executor_job(_test_influxdb_connection, data)
+    # Test InfluxDB connection
+    influx_result = await hass.async_add_executor_job(_test_influxdb_connection, data)
+    
+    # Test Google credentials if provided
+    google_credentials = data.get(CONF_GOOGLE_CREDENTIALS_JSON)
+    if google_credentials:
+        google_valid = await hass.async_add_executor_job(_test_google_credentials, google_credentials)
+        if not google_valid:
+            raise InvalidAuth("Invalid Google service account credentials")
+    
+    return influx_result
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -184,7 +227,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_GOOGLE_SHEETS_ID,
                         self.config_entry.data.get(CONF_GOOGLE_SHEETS_ID, "")
                     ),
-                    description="Google Sheets ID (optional - for future use)"
+                    description="Google Sheets document ID"
+                ): str,
+                vol.Optional(
+                    CONF_GOOGLE_CREDENTIALS_JSON,
+                    default=self.config_entry.options.get(
+                        CONF_GOOGLE_CREDENTIALS_JSON,
+                        self.config_entry.data.get(CONF_GOOGLE_CREDENTIALS_JSON, "")
+                    ),
+                    description="Google Service Account JSON credentials"
                 ): str,
             }),
         )
