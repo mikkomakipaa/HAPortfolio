@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import config_entry_oauth2_flow
 
 from .const import (
     DOMAIN,
@@ -36,7 +37,6 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_INFLUXDB_PASSWORD): str,
         vol.Optional(CONF_INFLUXDB_DATABASE, default="portfolio"): str,
         vol.Optional(CONF_GOOGLE_SHEETS_ID): str,
-        vol.Optional(CONF_CREDENTIALS_PATH, default="credentials.json"): str,
         vol.Optional(CONF_UPDATE_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
             vol.Coerce(int), vol.Range(min=5, max=1440)
         ),
@@ -118,6 +118,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Portfolio Tracker."""
 
     VERSION = 1
+    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
     @staticmethod
     @callback

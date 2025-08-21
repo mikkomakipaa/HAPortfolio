@@ -1,4 +1,4 @@
-"""Google API integration using Home Assistant's Google authentication."""
+"""Google API integration using Home Assistant's Application Credentials."""
 from __future__ import annotations
 
 import logging
@@ -6,9 +6,18 @@ from typing import Any, Dict, List, Optional
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from google.auth.exceptions import RefreshError
+from google.oauth2.credentials import Credentials
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.components.application_credentials import (
+    AuthenticatedConnection,
+    async_import_client_credential,
+)
+from homeassistant.helpers import config_entry_oauth2_flow
+
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,56 +25,55 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 
 class GoogleSheetsAPI:
-    """Google Sheets API client using HA's Google integration."""
+    """Google Sheets API client using HA's Application Credentials."""
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize the Google Sheets API client."""
         self.hass = hass
         self.config_entry = config_entry
         self._service = None
+        self._auth_implementation = None
 
     async def async_get_service(self):
-        """Get or create the Google Sheets service."""
+        """Get or create the Google Sheets service using Application Credentials."""
         if self._service is None:
             try:
-                # First, check if Google integration is loaded
-                if "google" not in self.hass.data:
-                    _LOGGER.warning("Google integration not found in Home Assistant. Please install and configure Google Drive integration first.")
+                # Get OAuth2 implementation for this config entry
+                implementation = await config_entry_oauth2_flow.async_get_config_entry_implementation(
+                    self.hass, self.config_entry
+                )
+                
+                if not implementation:
+                    _LOGGER.error("No OAuth2 implementation found. Please configure Application Credentials.")
                     return None
                 
-                # Try to get authentication from Google integration 
-                google_data = self.hass.data.get("google", {})
+                # Get OAuth2 session
+                session = config_entry_oauth2_flow.OAuth2Session(
+                    self.hass, self.config_entry, implementation
+                )
                 
-                # Check for Google config entries
-                google_entries = [entry for entry in self.hass.config_entries.async_entries("google")]
-                if not google_entries:
-                    _LOGGER.warning("No Google integration entries found. Please configure Google Drive integration first.")
+                # Check if we have valid credentials
+                if not session.valid_token:
+                    _LOGGER.warning("OAuth2 token not valid. Please re-authenticate.")
                     return None
                 
-                # Get the first Google entry
-                google_entry = google_entries[0]
-                entry_data = google_data.get(google_entry.entry_id)
+                # Create Google credentials from OAuth2 session
+                credentials = Credentials(
+                    token=session.token["access_token"],
+                    refresh_token=session.token.get("refresh_token"),
+                    client_id=implementation.client_id,
+                    client_secret=implementation.client_secret,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    scopes=SCOPES,
+                )
                 
-                if entry_data and hasattr(entry_data, 'async_get_access_token'):
-                    # Try to get access token from the Google integration
-                    try:
-                        token_info = await entry_data.async_get_access_token()
-                        if token_info:
-                            # Create credentials object
-                            from google.oauth2.credentials import Credentials
-                            credentials = Credentials(token=token_info['access_token'])
-                            self._service = build("sheets", "v4", credentials=credentials)
-                            _LOGGER.info("Successfully connected to Google Sheets API using HA Google integration")
-                        else:
-                            _LOGGER.warning("No access token available from Google integration")
-                            return None
-                    except Exception as token_error:
-                        _LOGGER.warning(f"Failed to get access token: {token_error}")
-                        return None
-                else:
-                    _LOGGER.warning("Google integration data not available or incompatible format")
-                    return None
+                # Build the service
+                self._service = build("sheets", "v4", credentials=credentials)
+                _LOGGER.info("Successfully connected to Google Sheets API using Application Credentials")
                 
+            except RefreshError as e:
+                _LOGGER.error(f"Failed to refresh Google API credentials: {e}")
+                return None
             except Exception as e:
                 _LOGGER.error(f"Failed to connect to Google Sheets API: {e}")
                 return None

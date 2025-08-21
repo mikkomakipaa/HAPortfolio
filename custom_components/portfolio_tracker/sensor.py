@@ -102,8 +102,8 @@ class PortfolioSensor(CoordinatorEntity, SensorEntity):
         self._portfolio_manager = portfolio_manager
         self._config_entry_id = config_entry_id
         
-        # Set unique ID
-        self._attr_unique_id = f"{config_entry_id}_{description.key}"
+        # Set unique ID using standardized format
+        self._attr_unique_id = f"{DOMAIN}_{config_entry_id}_{description.key}"
         
         # Set device info
         self._attr_device_info = {
@@ -111,7 +111,7 @@ class PortfolioSensor(CoordinatorEntity, SensorEntity):
             "name": "Portfolio Tracker",
             "manufacturer": "Portfolio Tracker",
             "model": "Home Assistant Integration",
-            "sw_version": "1.3.0",
+            "sw_version": "0.1",
         }
 
     @property

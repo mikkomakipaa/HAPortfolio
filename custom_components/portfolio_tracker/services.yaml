@@ -1,24 +1,26 @@
 update_data:
   name: Update Portfolio Data
-  description: Manually trigger portfolio data update from all configured sources.
+  description: Manually sync portfolio data from Google Sheets to InfluxDB. This service forces an immediate data update regardless of the automatic sync schedule.
   fields: {}
 
 run_analytics:
   name: Run Portfolio Analytics
-  description: Run portfolio analytics for the specified number of days.
+  description: Run basic portfolio analytics for the specified number of days. Note that advanced analytics should be performed in Grafana using the InfluxDB data.
   fields:
     days:
-      name: Days
-      description: Number of days to analyze (default: 30)
+      name: Analysis Period (Days)
+      description: Number of days to include in the analysis. Must be between 1 and 365 days.
       required: false
       default: 30
+      example: 30
       selector:
         number:
           min: 1
           max: 365
           mode: box
+          unit_of_measurement: "days"
 
 get_status:
   name: Get Portfolio Status
-  description: Get current portfolio system status and health information.
+  description: Retrieve current system status including InfluxDB connectivity, Google Sheets status, and overall integration health.
   fields: {}

@@ -40,15 +40,23 @@ class PortfolioManager:
         self._last_data = None
 
     def _get_influx_client(self):
-        """Get or create InfluxDB v1 client."""
+        """Get or create InfluxDB v1 client with improved error handling."""
         if self._influx_client is None:
             try:
                 from influxdb import InfluxDBClient
                 
-                # Extract credentials
-                username = self.config[CONF_INFLUXDB_USERNAME].strip()
-                password = self.config[CONF_INFLUXDB_PASSWORD].strip()
+            except ImportError as e:
+                _LOGGER.error("InfluxDB client not available. Please install influxdb package: %s", e)
+                raise HomeAssistantError("InfluxDB client library not found. Please check installation.") from e
+            
+            try:
+                # Extract and validate credentials
+                username = self.config.get(CONF_INFLUXDB_USERNAME, "").strip()
+                password = self.config.get(CONF_INFLUXDB_PASSWORD, "").strip()
                 database = self.config.get(CONF_INFLUXDB_DATABASE, "portfolio").strip()
+                
+                if not username or not password:
+                    raise HomeAssistantError("InfluxDB username and password are required")
                 
                 _LOGGER.debug("Creating InfluxDB v1 client for %s", self.config[CONF_INFLUXDB_URL])
                 
@@ -56,6 +64,7 @@ class PortfolioManager:
                 url = self.config[CONF_INFLUXDB_URL]
                 host, port, ssl = parse_influxdb_url(url)
                 
+                # Create client with improved settings
                 self._influx_client = InfluxDBClient(
                     host=host,
                     port=port,
@@ -63,25 +72,37 @@ class PortfolioManager:
                     password=password,
                     database=database,
                     ssl=ssl,
-                    timeout=30
+                    verify_ssl=ssl,
+                    timeout=30,
+                    retries=3
                 )
                 
                 _LOGGER.debug("InfluxDB v1 client created successfully")
                     
             except Exception as e:
                 _LOGGER.error("Failed to create InfluxDB v1 client: %s", e)
-                raise HomeAssistantError(f"InfluxDB v1 connection failed: {e}")
+                self._influx_client = None
+                raise HomeAssistantError(f"InfluxDB v1 connection failed: {e}") from e
                 
         return self._influx_client
 
     def test_connection(self) -> bool:
-        """Test connection to InfluxDB v1."""
+        """Test connection to InfluxDB v1 with improved error handling."""
         try:
             client = self._get_influx_client()
+            if not client:
+                return False
             
-            # Test InfluxDB v1 connection
-            client.ping()
-            _LOGGER.info("InfluxDB v1 connection test successful")
+            # Test InfluxDB v1 connection with retry logic
+            for attempt in range(3):
+                try:
+                    client.ping()
+                    _LOGGER.info("InfluxDB v1 connection test successful")
+                    break
+                except Exception as ping_error:
+                    if attempt == 2:  # Last attempt
+                        raise ping_error
+                    _LOGGER.debug("Ping attempt %d failed, retrying: %s", attempt + 1, ping_error)
             
             # Test database access
             database = self.config.get(CONF_INFLUXDB_DATABASE, "portfolio")
@@ -90,6 +111,12 @@ class PortfolioManager:
                 db_names = [db['name'] for db in databases]
                 if database not in db_names:
                     _LOGGER.warning("Database '%s' not found. Available: %s", database, db_names)
+                    # Create database if it doesn't exist
+                    try:
+                        client.create_database(database)
+                        _LOGGER.info("Created database '%s'", database)
+                    except Exception as create_error:
+                        _LOGGER.warning("Could not create database '%s': %s", database, create_error)
                 else:
                     _LOGGER.info("Database '%s' access confirmed", database)
             except Exception as e:
@@ -99,7 +126,9 @@ class PortfolioManager:
             
         except Exception as e:
             _LOGGER.error("Connection test failed: %s", e)
-            raise HomeAssistantError(f"Cannot connect to InfluxDB v1: {e}")
+            # Reset client on connection failure
+            self._influx_client = None
+            raise HomeAssistantError(f"Cannot connect to InfluxDB v1: {e}") from e
 
     async def async_get_google_sheets_data(self) -> dict[str, Any]:
         """Get portfolio data from Google Sheets using HA's Google integration."""

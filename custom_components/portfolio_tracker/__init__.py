@@ -225,26 +225,32 @@ async def _async_setup_services(hass: HomeAssistant, portfolio_manager: Portfoli
             _LOGGER.error("Failed to get portfolio status: %s", err)
             hass.bus.async_fire("portfolio_status_retrieved", {"status": "error", "error": str(err)})
 
-    # Register services with schema
+    # Register services with improved schema validation
     import voluptuous as vol
+    import homeassistant.helpers.config_validation as cv
     
     hass.services.async_register(
         DOMAIN, 
         "update_data", 
         update_portfolio_data,
-        schema=vol.Schema({})
+        schema=vol.Schema({}),
+        supports_response=False
     )
     hass.services.async_register(
         DOMAIN, 
         "run_analytics", 
         run_analytics,
         schema=vol.Schema({
-            vol.Optional("days", default=30): vol.All(vol.Coerce(int), vol.Range(min=1, max=365))
-        })
+            vol.Optional("days", default=30, description="Number of days to analyze"): vol.All(
+                cv.positive_int, vol.Range(min=1, max=365)
+            )
+        }),
+        supports_response=False
     )
     hass.services.async_register(
         DOMAIN, 
         "get_status", 
         get_portfolio_status,
-        schema=vol.Schema({})
+        schema=vol.Schema({}),
+        supports_response=False
     )

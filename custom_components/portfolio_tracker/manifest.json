@@ -1,19 +1,20 @@
 {
   "domain": "portfolio_tracker",
   "name": "Portfolio Tracker",
-  "version": "1.3.0",
+  "version": "0.1",
   "config_flow": true,
-  "documentation": "https://github.com/mikkomakipaa/HAPortfolioTracker",
+  "documentation": "https://github.com/mikkomakipaa/HAPortfolio",
   "requirements": [
-    "influxdb>=5.3.0,<6.0.0",
-    "google-api-python-client>=2.0.0",
-    "google-auth-oauthlib>=0.8.0"
+    "influxdb>=5.3.0,<7.0.0",
+    "google-api-python-client>=2.0.0,<3.0.0",
+    "google-auth>=2.0.0,<3.0.0",
+    "google-auth-oauthlib>=0.8.0,<2.0.0"
   ],
   "codeowners": ["@mikkomakipaa"],
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/mikkomakipaa/HAPortfolioTracker/issues",
+  "issue_tracker": "https://github.com/mikkomakipaa/HAPortfolio/issues",
   "integration_type": "hub",
   "quality_scale": "silver",
-  "dependencies": ["google"],
-  "after_dependencies": ["application_credentials", "google"]
+  "dependencies": ["application_credentials"],
+  "after_dependencies": ["application_credentials"]
 }

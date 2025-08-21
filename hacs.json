@@ -5,5 +5,7 @@
   "render_readme": true,
   "domains": ["portfolio_tracker"],
   "iot_class": "cloud_polling",
-  "homeassistant": "2023.1.0"
+  "homeassistant": "2023.1.0",
+  "country": ["US", "DE", "NL", "SE", "NO", "FI", "DK"],
+  "category": "integration"
 }

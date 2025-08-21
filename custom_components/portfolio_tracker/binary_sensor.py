@@ -84,8 +84,8 @@ class PortfolioBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._portfolio_manager = portfolio_manager
         self._config_entry_id = config_entry_id
         
-        # Set unique ID
-        self._attr_unique_id = f"{config_entry_id}_{description.key}"
+        # Set unique ID using standardized format
+        self._attr_unique_id = f"{DOMAIN}_{config_entry_id}_{description.key}"
         
         # Set device info
         self._attr_device_info = {
@@ -93,7 +93,7 @@ class PortfolioBinarySensor(CoordinatorEntity, BinarySensorEntity):
             "name": "Portfolio Tracker",
             "manufacturer": "Portfolio Tracker",
             "model": "Home Assistant Integration",
-            "sw_version": "1.3.0",
+            "sw_version": "0.1",
         }
 
     @property
@@ -107,11 +107,24 @@ class PortfolioBinarySensor(CoordinatorEntity, BinarySensorEntity):
         data_sources = data.get("data_sources", {})
 
         if key == "data_source_health":
-            # Overall health - at least InfluxDB should be connected
-            return data_sources.get("influxdb_connected", False)
+            # Overall health - InfluxDB must be connected, Google Sheets optional but checked
+            influxdb_ok = data_sources.get("influxdb_connected", False)
+            google_sheets_configured = bool(self._portfolio_manager.config.get("google_sheets_id"))
+            
+            if google_sheets_configured:
+                # If Google Sheets is configured, it should also be connected for full health
+                google_sheets_ok = data_sources.get("google_sheets_connected", False)
+                return influxdb_ok and google_sheets_ok
+            else:
+                # If Google Sheets not configured, only InfluxDB health matters
+                return influxdb_ok
+                
         elif key == "influxdb_connected":
             return data_sources.get("influxdb_connected", False)
         elif key == "google_sheets_connected":
+            # Return None if not configured, otherwise return connection status
+            if not self._portfolio_manager.config.get("google_sheets_id"):
+                return None
             return data_sources.get("google_sheets_connected", False)
 
         return None
@@ -129,15 +142,26 @@ class PortfolioBinarySensor(CoordinatorEntity, BinarySensorEntity):
         attributes = {}
 
         if key == "data_source_health":
+            google_sheets_configured = bool(self._portfolio_manager.config.get("google_sheets_id"))
+            
             attributes.update({
                 "influxdb_status": "connected" if data_sources.get("influxdb_connected") else "disconnected",
-                "google_sheets_status": "connected" if data_sources.get("google_sheets_connected") else "disconnected",
+                "google_sheets_status": (
+                    "connected" if data_sources.get("google_sheets_connected") 
+                    else "disconnected" if google_sheets_configured 
+                    else "not_configured"
+                ),
+                "google_sheets_configured": google_sheets_configured,
                 "last_successful_update": data.get("last_update"),
-                "total_data_sources": len([k for k, v in data_sources.items() if v]),
+                "total_configured_sources": 1 + (1 if google_sheets_configured else 0),
+                "total_connected_sources": len([k for k, v in data_sources.items() if v]),
+                "auto_sync_enabled": self._portfolio_manager.config.get("auto_sync_sheets", False),
             })
             
             if data.get("error"):
                 attributes["last_error"] = data.get("error")
+            if data.get("partial_errors"):
+                attributes["partial_errors"] = data.get("partial_errors")
 
         elif key == "influxdb_connected":
             attributes.update({
