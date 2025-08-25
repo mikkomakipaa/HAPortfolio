@@ -295,12 +295,16 @@ class PortfolioManager:
             # Check Google Sheets connectivity if configured
             if self.config.get(CONF_GOOGLE_SHEETS_ID) and self._google_api:
                 try:
-                    # Note: This is a sync method, so we can't call async methods directly
-                    # Google Sheets status will be checked in the coordinator
-                    portfolio_data['data_sources']['google_sheets_connected'] = False
+                    # Simple check - if we have API and sheets ID, assume connected
+                    # Full status check is done in the coordinator's async context
+                    portfolio_data['data_sources']['google_sheets_connected'] = True
+                    _LOGGER.debug("Google Sheets API initialized - marking as connected")
                 except Exception as e:
                     _LOGGER.debug("Google Sheets connectivity check failed: %s", e)
                     portfolio_data['data_sources']['google_sheets_connected'] = False
+            else:
+                # No Google Sheets configuration
+                portfolio_data['data_sources']['google_sheets_connected'] = False
             
             # Store for future reference
             self._last_data = portfolio_data
@@ -324,13 +328,10 @@ class PortfolioManager:
 
     def update_portfolio_data(self) -> bool:
         """Manually trigger portfolio data update from Google Sheets to InfluxDB."""
-        try:
-            # This method should be called from async context with executor
-            _LOGGER.warning("update_portfolio_data called in sync context - use async_update_portfolio_data instead")
-            return False
-        except Exception as e:
-            _LOGGER.error("Failed to update portfolio data: %s", e)
-            return False
+        # This is a sync wrapper that should not be used directly
+        # It's kept for backward compatibility but logs a warning
+        _LOGGER.warning("update_portfolio_data called in sync context - use async_update_portfolio_data instead")
+        return False
 
     async def async_update_portfolio_data(self) -> bool:
         """Fetch data from Google Sheets and update InfluxDB."""
