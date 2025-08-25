@@ -240,8 +240,12 @@ async def _async_setup_services(hass: HomeAssistant, portfolio_manager: Portfoli
             return {"success": False, "error": str(err)}
 
     # Register services with improved schema validation
-    import voluptuous as vol
-    import homeassistant.helpers.config_validation as cv
+    try:
+        import voluptuous as vol
+        import homeassistant.helpers.config_validation as cv
+    except ImportError as err:
+        _LOGGER.error("Required validation libraries not available: %s", err)
+        return
     
     hass.services.async_register(
         DOMAIN, 
