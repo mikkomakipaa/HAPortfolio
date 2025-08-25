@@ -47,36 +47,61 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
-def _test_google_credentials(credentials_json: str) -> bool:
-    """Test Google service account credentials."""
+def _test_google_credentials(credentials_json: str) -> dict[str, str]:
+    """Test Google service account credentials with detailed validation."""
     if not credentials_json:
-        return True  # Optional
+        return {"valid": True}  # Optional
     
     try:
         import json
         from google.oauth2.service_account import Credentials
         
         # Parse JSON
-        credentials_data = json.loads(credentials_json)
+        try:
+            credentials_data = json.loads(credentials_json)
+        except json.JSONDecodeError as e:
+            return {"valid": False, "error": "invalid_json", "details": f"Invalid JSON format: {e}"}
+        
+        # Check required fields
+        required_fields = ["type", "project_id", "private_key_id", "private_key", "client_email"]
+        missing_fields = [field for field in required_fields if field not in credentials_data]
+        if missing_fields:
+            return {
+                "valid": False, 
+                "error": "missing_fields", 
+                "details": f"Missing required fields: {', '.join(missing_fields)}"
+            }
         
         # Check if it's a service account
         if credentials_data.get("type") != "service_account":
-            raise ValueError("Only service account credentials are supported")
+            return {
+                "valid": False, 
+                "error": "not_service_account", 
+                "details": "Only service account credentials are supported. Found type: " + str(credentials_data.get("type"))
+            }
         
         # Try to create credentials
-        Credentials.from_service_account_info(
-            credentials_data, 
-            scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
-        )
+        try:
+            Credentials.from_service_account_info(
+                credentials_data, 
+                scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+            )
+        except Exception as e:
+            return {
+                "valid": False, 
+                "error": "credential_creation_failed", 
+                "details": f"Failed to create credentials: {e}"
+            }
         
-        return True
+        return {
+            "valid": True, 
+            "service_account_email": credentials_data.get("client_email"),
+            "project_id": credentials_data.get("project_id")
+        }
         
-    except (json.JSONDecodeError, ValueError, KeyError) as e:
-        _LOGGER.debug("Google credentials validation failed: %s", e)
-        return False
     except Exception as e:
         _LOGGER.debug("Google credentials test failed: %s", e)
-        return False
+        return {"valid": False, "error": "unknown_error", "details": str(e)}
 
 
 def _test_influxdb_connection(data: dict[str, Any]) -> dict[str, Any]:
@@ -149,10 +174,33 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     
     # Test Google credentials if provided
     google_credentials = data.get(CONF_GOOGLE_CREDENTIALS_JSON)
-    if google_credentials:
-        google_valid = await hass.async_add_executor_job(_test_google_credentials, google_credentials)
-        if not google_valid:
-            raise InvalidAuth("Invalid Google service account credentials")
+    google_sheets_id = data.get(CONF_GOOGLE_SHEETS_ID)
+    
+    if google_credentials or google_sheets_id:
+        # If one is provided, both should be provided for full functionality
+        if google_credentials and not google_sheets_id:
+            raise InvalidAuth("Google Sheets ID is required when providing credentials")
+        elif google_sheets_id and not google_credentials:
+            _LOGGER.warning("Google Sheets ID provided but no credentials. Google Sheets sync will be disabled.")
+        elif google_credentials and google_sheets_id:
+            # Validate credentials
+            google_result = await hass.async_add_executor_job(_test_google_credentials, google_credentials)
+            if not google_result.get("valid"):
+                error_details = google_result.get("details", "Unknown error")
+                error_type = google_result.get("error", "unknown_error")
+                
+                if error_type == "invalid_json":
+                    raise InvalidAuth(f"Invalid Google credentials JSON: {error_details}")
+                elif error_type == "missing_fields":
+                    raise InvalidAuth(f"Incomplete Google credentials: {error_details}")
+                elif error_type == "not_service_account":
+                    raise InvalidAuth(f"Invalid credential type: {error_details}")
+                else:
+                    raise InvalidAuth(f"Google credentials validation failed: {error_details}")
+            
+            # Add Google validation info to result
+            influx_result["google_service_account"] = google_result.get("service_account_email")
+            influx_result["google_project"] = google_result.get("project_id")
     
     return influx_result
 
