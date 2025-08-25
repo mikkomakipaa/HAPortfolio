@@ -251,41 +251,65 @@ async def _async_setup_services(hass: HomeAssistant, portfolio_manager: Portfoli
         _LOGGER.warning("Schema validation libraries not available: %s. Services will be registered without schema validation.", err)
         schema_available = False
     
-    hass.services.async_register(
-        DOMAIN, 
-        "update_data", 
-        update_portfolio_data,
-        schema=vol.Schema({}),
-        supports_response=vol.Schema({
-            vol.Required("success"): bool,
-            vol.Optional("message"): str,
-            vol.Optional("error"): str,
-        })
-    )
-    hass.services.async_register(
-        DOMAIN, 
-        "run_analytics", 
-        run_analytics,
-        schema=vol.Schema({
-            vol.Optional("days", default=30, description="Number of days to analyze"): vol.All(
-                cv.positive_int, vol.Range(min=1, max=365)
-            )
-        }),
-        supports_response=vol.Schema({
-            vol.Required("success"): bool,
-            vol.Optional("analytics"): dict,
-            vol.Optional("days_analyzed"): int,
-            vol.Optional("error"): str,
-        })
-    )
-    hass.services.async_register(
-        DOMAIN, 
-        "get_status", 
-        get_portfolio_status,
-        schema=vol.Schema({}),
-        supports_response=vol.Schema({
-            vol.Required("success"): bool,
-            vol.Optional("status"): dict,
-            vol.Optional("error"): str,
-        })
-    )
+    # Register update_data service
+    if schema_available:
+        hass.services.async_register(
+            DOMAIN, 
+            "update_data", 
+            update_portfolio_data,
+            schema=vol.Schema({}),
+            supports_response=vol.Schema({
+                vol.Required("success"): bool,
+                vol.Optional("message"): str,
+                vol.Optional("error"): str,
+            })
+        )
+    else:
+        hass.services.async_register(
+            DOMAIN, 
+            "update_data", 
+            update_portfolio_data
+        )
+    # Register run_analytics service
+    if schema_available:
+        hass.services.async_register(
+            DOMAIN, 
+            "run_analytics", 
+            run_analytics,
+            schema=vol.Schema({
+                vol.Optional("days", default=30, description="Number of days to analyze"): vol.All(
+                    cv.positive_int, vol.Range(min=1, max=365)
+                )
+            }),
+            supports_response=vol.Schema({
+                vol.Required("success"): bool,
+                vol.Optional("analytics"): dict,
+                vol.Optional("days_analyzed"): int,
+                vol.Optional("error"): str,
+            })
+        )
+    else:
+        hass.services.async_register(
+            DOMAIN, 
+            "run_analytics", 
+            run_analytics
+        )
+    # Register get_status service
+    if schema_available:
+        hass.services.async_register(
+            DOMAIN, 
+            "get_status", 
+            get_portfolio_status,
+            schema=vol.Schema({}),
+            supports_response=vol.Schema({
+                vol.Required("success"): bool,
+                vol.Optional("status"): dict,
+                vol.Optional("error"): str,
+            })
+        )
+    else:
+        hass.services.async_register(
+            DOMAIN, 
+            "get_status", 
+            get_portfolio_status
+        )
