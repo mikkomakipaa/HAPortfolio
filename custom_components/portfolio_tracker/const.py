@@ -24,6 +24,7 @@ CONF_AUTO_SYNC_SHEETS: Final = "auto_sync_sheets"
 DEFAULT_SCAN_INTERVAL: Final = 30  # minutes
 DEFAULT_TIMEOUT: Final = 30  # seconds
 DEFAULT_INFLUXDB_URL: Final = "http://homeassistant.local:8086"
+DEFAULT_SHEET_RANGE: Final = "A1:Z3000"  # Default range for Google Sheets
 
 # Service names
 SERVICE_UPDATE_DATA: Final = "update_data"
@@ -34,6 +35,20 @@ SERVICE_GET_STATUS: Final = "get_status"
 EVENT_PORTFOLIO_UPDATED: Final = "portfolio_tracker_updated"
 EVENT_ANALYTICS_COMPLETED: Final = "portfolio_analytics_completed"
 EVENT_STATUS_RETRIEVED: Final = "portfolio_status_retrieved"
+
+# Error codes for better error handling
+ERROR_CODES = {
+    "INFLUXDB_CONNECTION_FAILED": "Failed to connect to InfluxDB",
+    "INFLUXDB_AUTH_FAILED": "InfluxDB authentication failed",
+    "INFLUXDB_DATABASE_NOT_FOUND": "InfluxDB database not found",
+    "GOOGLE_CREDENTIALS_INVALID": "Invalid Google service account credentials",
+    "GOOGLE_CREDENTIALS_MISSING_FIELDS": "Missing required fields in Google credentials", 
+    "GOOGLE_SHEETS_ACCESS_DENIED": "Access denied to Google Sheets",
+    "GOOGLE_SHEETS_NOT_FOUND": "Google Sheets document not found",
+    "DATA_SYNC_FAILED": "Failed to sync data from Google Sheets to InfluxDB",
+    "DATA_FORMAT_INVALID": "Invalid data format in Google Sheets",
+    "CONFIGURATION_INCOMPLETE": "Configuration is incomplete",
+}
 
 # Entity types
 SENSOR_TYPES = {
@@ -81,4 +96,13 @@ BINARY_SENSOR_TYPES = {
         "icon": "mdi:google",
         "device_class": "connectivity",
     },
+}
+
+# Column mapping for Google Sheets flexibility
+DEFAULT_COLUMN_MAPPING = {
+    "symbol": ["symbol", "ticker", "stock"],
+    "quantity": ["quantity", "shares", "amount"],
+    "price": ["price", "current_price", "unit_price"],
+    "value": ["value", "market_value", "total_value"],
+    "change": ["change", "daily_change", "day_change"],
 }
