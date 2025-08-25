@@ -61,10 +61,15 @@ class GoogleSheetsAPI:
                     _LOGGER.error("Only service account credentials are supported")
                     return None
                 
-                # Build the service
-                self._service = await self.hass.async_add_executor_job(
-                    build, "sheets", "v4", credentials=credentials
-                )
+                # Build the service with error handling
+                try:
+                    self._service = await self.hass.async_add_executor_job(
+                        build, "sheets", "v4", credentials=credentials
+                    )
+                    _LOGGER.info("Google Sheets API service initialized successfully")
+                except Exception as e:
+                    _LOGGER.error("Failed to build Google Sheets API service: %s", e)
+                    return None
                 self._credentials = credentials
                 
                 _LOGGER.info("Successfully connected to Google Sheets API using service account")
