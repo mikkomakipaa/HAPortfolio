@@ -16,6 +16,8 @@ from .const import (
     CONF_INFLUXDB_DATABASE,
     CONF_GOOGLE_SHEETS_ID,
     CONF_GOOGLE_CREDENTIALS_JSON,
+    DEFAULT_COLUMN_MAPPING,
+    ERROR_CODES,
 )
 from .utils import parse_influxdb_url
 from .google_api import GoogleSheetsAPI
@@ -365,7 +367,7 @@ class PortfolioManager:
             return False
 
     def _write_sheets_data_to_influx(self, sheets_data: list) -> bool:
-        """Write Google Sheets data to InfluxDB (sync method for executor)."""
+        """Write Google Sheets data to InfluxDB (sync method for executor) with flexible column mapping."""
         try:
             client = self._get_influx_client()
             database = self.config.get(CONF_INFLUXDB_DATABASE, "portfolio")
@@ -379,6 +381,9 @@ class PortfolioManager:
             data_rows = sheets_data[1:]
             
             _LOGGER.debug("Processing %d data rows with headers: %s", len(data_rows), headers)
+            
+            # Create column mapping
+            column_map = self._create_column_mapping(headers)
             
             # Prepare data points for InfluxDB
             points = []
@@ -396,13 +401,14 @@ class PortfolioManager:
                         if i < len(row):
                             row_data[header] = str(row[i]).strip()
                     
-                    # Extract key fields (adjust based on your sheet structure)
-                    symbol = row_data.get('symbol', row_data.get('ticker', ''))
-                    quantity = float(row_data.get('quantity', row_data.get('shares', 0)))
-                    price = float(row_data.get('price', row_data.get('current_price', 0)))
-                    value = float(row_data.get('value', row_data.get('market_value', quantity * price)))
+                    # Extract key fields using flexible column mapping
+                    symbol = self._get_mapped_value(row_data, column_map, 'symbol')
+                    quantity = float(self._get_mapped_value(row_data, column_map, 'quantity') or 0)
+                    price = float(self._get_mapped_value(row_data, column_map, 'price') or 0)
+                    value = float(self._get_mapped_value(row_data, column_map, 'value') or (quantity * price))
                     
                     if not symbol or value <= 0:
+                        _LOGGER.debug("Skipping row %d: invalid symbol '%s' or value %.2f", row_index, symbol, value)
                         continue
                     
                     # Create InfluxDB point for individual position
@@ -415,7 +421,7 @@ class PortfolioManager:
                             "quantity": quantity,
                             "price": price,
                             "value": value,
-                            "change": float(row_data.get('change', row_data.get('daily_change', 0))),
+                            "change": float(self._get_mapped_value(row_data, column_map, 'change') or 0),
                         },
                         "time": datetime.now(timezone.utc).isoformat()
                     }
@@ -455,6 +461,27 @@ class PortfolioManager:
         except Exception as e:
             _LOGGER.error("Failed to write data to InfluxDB: %s", e)
             return False
+    
+    def _create_column_mapping(self, headers: list[str]) -> dict[str, str]:
+        """Create a mapping from standard field names to actual column names."""
+        column_map = {}
+        
+        for field, possible_names in DEFAULT_COLUMN_MAPPING.items():
+            for possible_name in possible_names:
+                if possible_name in headers:
+                    column_map[field] = possible_name
+                    break
+        
+        _LOGGER.debug("Column mapping created: %s", column_map)
+        return column_map
+    
+    def _get_mapped_value(self, row_data: dict, column_map: dict, field: str) -> str | None:
+        """Get value for a field using the column mapping."""
+        mapped_column = column_map.get(field)
+        if mapped_column and mapped_column in row_data:
+            value = row_data[mapped_column]
+            return value if value and value.strip() else None
+        return None
 
     def run_analytics(self, days: int = 30) -> dict[str, Any]:
         """Run portfolio analytics using InfluxDB v1."""
