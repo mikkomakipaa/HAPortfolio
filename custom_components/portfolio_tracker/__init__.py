@@ -186,6 +186,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception as err:
         _LOGGER.warning("Failed to register services: %s. Some functionality may not be available.", err)
 
+    _LOGGER.info("Portfolio Tracker integration setup completed successfully")
     return True
 
 
