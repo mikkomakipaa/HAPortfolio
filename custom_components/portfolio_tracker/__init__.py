@@ -133,6 +133,8 @@ class PortfolioDataUpdateCoordinator(DataUpdateCoordinator):
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Portfolio Tracker from a config entry."""
+    _LOGGER.info("Setting up Portfolio Tracker integration (entry_id: %s)", entry.entry_id)
+    
     # Extract configuration
     config = {
         CONF_INFLUXDB_URL: entry.data[CONF_INFLUXDB_URL],
