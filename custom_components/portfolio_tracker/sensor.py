@@ -4,7 +4,28 @@ from __future__ import annotations
 from datetime import datetime
 import logging
 from typing import Any
-from zoneinfo import ZoneInfo
+
+# Handle timezone imports for compatibility
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    # Fallback for Python < 3.9 or missing zoneinfo
+    try:
+        from backports.zoneinfo import ZoneInfo
+    except ImportError:
+        # Final fallback using datetime.timezone
+        _LOGGER.warning("zoneinfo not available, using datetime.timezone for timezone handling")
+        from datetime import timezone
+        
+        class ZoneInfo:
+            """Compatibility wrapper for timezone handling."""
+            
+            def __init__(self, tz_name: str):
+                # Simple UTC fallback
+                self._tz = timezone.utc
+            
+            def localize(self, dt):
+                return dt.replace(tzinfo=self._tz)
 
 from homeassistant.components.sensor import (
     SensorEntity,
