@@ -64,8 +64,9 @@ class PortfolioManager:
                 from influxdb import InfluxDBClient
                 
             except ImportError as e:
-                _LOGGER.error("InfluxDB client not available. Please install influxdb package: %s", e)
-                raise HomeAssistantError("InfluxDB client library not found. Please check installation.") from e
+                _LOGGER.error("InfluxDB client not available. Please install influxdb package with: pip install influxdb>=5.3.0,<7.0.0")
+                _LOGGER.error("Import error details: %s", e)
+                raise HomeAssistantError("InfluxDB client library not found. Please install 'influxdb' package.") from e
             
             try:
                 # Extract and validate credentials
