@@ -146,12 +146,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Initialize portfolio manager with config entry for Google API access
     portfolio_manager = PortfolioManager(hass, config, entry)
     
-    # Test the connection
+    # Test the connection (non-blocking setup)
     try:
-        await hass.async_add_executor_job(portfolio_manager.test_connection)
+        connection_test = await hass.async_add_executor_job(portfolio_manager.test_connection)
+        if not connection_test:
+            _LOGGER.warning("Portfolio Tracker InfluxDB connection test failed, but continuing setup. Check your InfluxDB configuration.")
+        else:
+            _LOGGER.info("Portfolio Tracker InfluxDB connection successful")
     except Exception as err:
-        _LOGGER.error("Failed to connect to portfolio tracker: %s", err)
-        return False
+        _LOGGER.warning("Failed to test portfolio tracker connection during setup: %s. Integration will continue loading but may not function correctly.", err)
+        # Don't fail setup completely - allow integration to load with limited functionality
 
     # Create data update coordinator
     update_interval = timedelta(
@@ -174,8 +178,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Setup platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Register services
-    await _async_setup_services(hass, portfolio_manager)
+    # Register services with error handling
+    try:
+        await _async_setup_services(hass, portfolio_manager)
+    except Exception as err:
+        _LOGGER.warning("Failed to register services: %s. Some functionality may not be available.", err)
 
     return True
 
